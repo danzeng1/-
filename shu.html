@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>气球爆炸游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #87CEEB;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 80vh;
+            overflow: hidden;
+        }
+        
+        .balloon {
+            position: absolute;
+            width: 60px;
+            height: 80px;
+            background-color: #FF5252;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            user-select: none;
+            animation: float 4s infinite alternate;
+        }
+        
+        .balloon:before {
+            content: "";
+            position: absolute;
+            bottom: -10px;
+            left: 25px;
+            width: 10px;
+            height: 15px;
+            background-color: #FF5252;
+            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+        }
+        
+        .balloon:after {
+            content: "";
+            position: absolute;
+            bottom: -25px;
+            left: 28px;
+            width: 4px;
+            height: 20px;
+            background-color: #888;
+        }
+        
+        @keyframes float {
+            from { transform: translateY(0) rotate(0deg); }
+            to { transform: translateY(-20px) rotate(5deg); }
+        }
+        
+        #score-panel {
+            width: 100%;
+            padding: 15px;
+            display: flex;
+            justify-content: space-around;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 1.2rem;
+        }
+        
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+        }
+        
+        #start-btn {
+            margin-top: 20px;
+            padding: 10px 30px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 100;
+        }
+        
+        #restart-btn {
+            margin-top: 20px;
+            padding: 10px 30px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="score-panel">
+        <div>得分: <span id="score">0</span></div>
+        <div>时间: <span id="time">60</span>秒</div>
+    </div>
+    
+    <div id="game-container">
+        <div id="start-screen">
+            <h1>气球爆炸游戏</h1>
+            <p>点击屏幕上出现的气球，尽可能多得分数！</p>
+            <button id="start-btn">开始游戏</button>
+        </div>
+        
+        <div id="game-over">
+            <h1>游戏结束</h1>
+            <p>你的最终得分: <span id="final-score">0</span></p>
+            <button id="restart-btn">再玩一次</button>
+        </div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('game-container');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const scoreDisplay = document.getElementById('score');
+        const timeDisplay = document.getElementById('time');
+        const finalScoreDisplay = document.getElementById('final-score');
+        
+        let score = 0;
+        let timeLeft = 60;
+        let gameInterval;
+        let timeInterval;
+        let balloonSpeed = 1500; // 气球出现速度(毫秒)
+        
+        const colors = ['#FF5252', '#FF9800', '#FFEB3B', '#4CAF50', '#2196F3', '#9C27B0'];
+        
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+        
+        function startGame() {
+            // 重置游戏状态
+            score = 0;
+            timeLeft = 60;
+            scoreDisplay.textContent = score;
+            timeDisplay.textContent = timeLeft;
+            
+            // 清除所有气球
+            document.querySelectorAll('.balloon').forEach(balloon => balloon.remove());
+            
+            // 隐藏开始和结束屏幕
+            startScreen.style.display = 'none';
+            gameOverScreen.style.display = 'none';
+            
+            // 开始游戏循环
+            gameInterval = setInterval(createBalloon, balloonSpeed);
+            
+            // 开始倒计时
+            timeInterval = setInterval(() => {
+                timeLeft--;
+                timeDisplay.textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+        
+        function createBalloon() {
+            const balloon = document.createElement('div');
+            balloon.className = 'balloon';
+            
+            // 随机位置
+            const x = Math.random() * (gameContainer.offsetWidth - 60);
+            const y = gameContainer.offsetHeight;
+            
+            // 随机颜色
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            balloon.style.backgroundColor = color;
+            balloon.style.left = `${x}px`;
+            balloon.style.top = `${y}px`;
+            
+            // 随机大小
+            const size = Math.random() * 30 + 50;
+            balloon.style.width = `${size}px`;
+            balloon.style.height = `${size * 1.3}px`;
+            
+            // 点击事件
+            balloon.addEventListener('click', () => {
+                // 爆炸效果
+                balloon.style.transition = 'transform 0.2s, opacity 0.2s';
+                balloon.style.transform = 'scale(1.5)';
+                balloon.style.opacity = '0';
+                
+                // 增加分数
+                score += Math.floor(size / 10);
+                scoreDisplay.textContent = score;
+                
+                // 移除气球
+                setTimeout(() => {
+                    balloon.remove();
+                }, 200);
+            });
+            
+            // 自动上升动画
+            const duration = Math.random() * 3000 + 5000;
+            balloon.style.transition = `top ${duration}ms linear`;
+            
+            gameContainer.appendChild(balloon);
+            
+            // 触发动画
+            setTimeout(() => {
+                balloon.style.top = `${-100}px`;
+            }, 10);
+            
+            // 气球飞出屏幕后移除
+            setTimeout(() => {
+                if (balloon.parentNode) {
+                    balloon.remove();
+                }
+            }, duration);
+        }
+        
+        function endGame() {
+            clearInterval(gameInterval);
+            clearInterval(timeInterval);
+            
+            finalScoreDisplay.textContent = score;
+            gameOverScreen.style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
